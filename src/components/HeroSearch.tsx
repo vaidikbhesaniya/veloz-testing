@@ -7,7 +7,7 @@ export interface PlaceholdersAndVanishInputProps {
   setSearch: Dispatch<SetStateAction<string>>;
 }
 
-export function PlaceholdersAndVanishInput({
+export function HeroSearch({
   search,
   setSearch,
 }: PlaceholdersAndVanishInputProps) {

@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  clerkId   String   @unique
+  email     String   @unique
+  name      String?
+  imageUrl  String?
+  provider  String
+  token     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  Trip      Trip[]
+}
+
+model Trip {
+  id          String   @id @default(uuid())
+  userId      String
+  destination String
+  startDate   DateTime
+  endDate     DateTime
+  duration    Int
+  travelers   Int      @default(1)
+  budget      String   @default("medium")
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  interests     Interest[]
+  attractions   Attraction[]
+  itineraryDays ItineraryDay[]
+}
+
+model Interest {
+  id     String @id @default(uuid())
+  name   String
+  tripId String
+
+  // Relations
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, name])
+}
+
+model Attraction {
+  id             String  @id @default(uuid())
+  name           String
+  placeId        String?
+  latitude       Float?
+  longitude      Float?
+  type           String?
+  rating         Float?
+  address        String?
+  tripId         String
+  itineraryDayId String?
+
+  // Relations
+  trip         Trip          @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  itineraryDay ItineraryDay? @relation(fields: [itineraryDayId], references: [id], onDelete: SetNull)
+}
+
+model ItineraryDay {
+  id        String   @id @default(uuid())
+  tripId    String
+  dayNumber Int
+  date      DateTime
+  notes     String?
+
+  trip        Trip         @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  attractions Attraction[]
+}

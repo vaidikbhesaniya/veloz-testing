@@ -194,29 +194,29 @@ export default function ChatBot() {
   }, []);
 
   // Function to handle API errors with a fallback mechanism
-  const handleOfflineResponse = (userQuery: string): string => {
-    const lowerQuery = userQuery.toLowerCase();
+  // const handleOfflineResponse = (userQuery: string): string => {
+  //   const lowerQuery = userQuery.toLowerCase();
 
-    // Common destinations
-    if (lowerQuery.includes('goa')) {
-      return "Goa is a popular beach destination in India known for its beautiful beaches, vibrant nightlife, and Portuguese-influenced architecture. The best time to visit is between November and February. Popular beaches include Baga, Calangute, and Anjuna. Don't miss trying the fresh seafood and local Goan cuisine!";
-    }
+  //   // Common destinations
+  //   if (lowerQuery.includes('goa')) {
+  //     return "Goa is a popular beach destination in India known for its beautiful beaches, vibrant nightlife, and Portuguese-influenced architecture. The best time to visit is between November and February. Popular beaches include Baga, Calangute, and Anjuna. Don't miss trying the fresh seafood and local Goan cuisine!";
+  //   }
 
-    if (lowerQuery.includes('trip') || lowerQuery.includes('vacation')) {
-      return "When planning a trip, consider factors like your budget, travel duration, preferred activities, and the best season to visit. I recommend making a checklist of essentials like travel documents, accommodations, transportation, and a rough itinerary while leaving room for spontaneous activities.";
-    }
+  //   if (lowerQuery.includes('trip') || lowerQuery.includes('vacation')) {
+  //     return "When planning a trip, consider factors like your budget, travel duration, preferred activities, and the best season to visit. I recommend making a checklist of essentials like travel documents, accommodations, transportation, and a rough itinerary while leaving room for spontaneous activities.";
+  //   }
 
-    if (lowerQuery.includes('hotel') || lowerQuery.includes('stay')) {
-      return "When booking accommodations, consider location, budget, amenities, and reviews. For the best rates, try booking in advance or during off-peak seasons. Many hotels offer discounts for longer stays or through loyalty programs.";
-    }
+  //   if (lowerQuery.includes('hotel') || lowerQuery.includes('stay')) {
+  //     return "When booking accommodations, consider location, budget, amenities, and reviews. For the best rates, try booking in advance or during off-peak seasons. Many hotels offer discounts for longer stays or through loyalty programs.";
+  //   }
 
-    if (lowerQuery.includes('flight') || lowerQuery.includes('air')) {
-      return "For the best flight deals, try booking 1-3 months in advance and be flexible with your travel dates if possible. Use flight comparison websites and consider flying on weekdays rather than weekends. Don't forget to check baggage allowances and airport transfer options at your destination.";
-    }
+  //   if (lowerQuery.includes('flight') || lowerQuery.includes('air')) {
+  //     return "For the best flight deals, try booking 1-3 months in advance and be flexible with your travel dates if possible. Use flight comparison websites and consider flying on weekdays rather than weekends. Don't forget to check baggage allowances and airport transfer options at your destination.";
+  //   }
 
-    // Default response
-    return "That sounds like an interesting travel topic. To give you the best advice, could you provide more details about your specific travel plans, destination, or what aspect of travel you're most interested in?";
-  };
+  //   // Default response
+  //   return "That sounds like an interesting travel topic. To give you the best advice, could you provide more details about your specific travel plans, destination, or what aspect of travel you're most interested in?";
+  // };
 
   return (
     <div className="fixed bottom-8 right-10">

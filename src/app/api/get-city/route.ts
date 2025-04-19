@@ -1,11 +1,21 @@
 import { NextResponse } from "next/server";
 
+interface GeoRequestBody {
+    lat: number;
+    lon: number;
+}
+
+interface AddressComponent {
+    long_name: string;
+    types: string[];
+}
+
 export async function POST(req: Request) {
-    const body = await req.json();
+    const body: GeoRequestBody = await req.json();
     const apiKey = process.env.GOOGLE_MAPS_API_KEY;
 
     if (!body.lat || !body.lon) {
-        return NextResponse.json({ error: "Latitude and Longitude are required", status: 400 });
+        return NextResponse.json({ error: "Latitude and Longitude are required" }, { status: 400 });
     }
 
     try {
@@ -14,17 +24,18 @@ export async function POST(req: Request) {
         const data = await response.json();
 
         if (data.status === "OK") {
-            const addressComponents = data.results[0].address_components;
-            const city = addressComponents.find((comp: any) =>
+            const addressComponents: AddressComponent[] = data.results[0].address_components;
+            const city = addressComponents.find((comp) =>
                 comp.types.includes("locality")
             )?.long_name;
 
             return NextResponse.json({ city }, { status: 200 });
         } else {
-            console.log("UNABLE");
+            console.error("Geocode API error:", data.status);
             return NextResponse.json({ error: "Unable to fetch location" }, { status: 400 });
         }
-    } catch (error) {
-        return NextResponse.json({ error: "Failed to fetch location data", status: 500 });
+    } catch (err) {
+        console.error("Fetch failed:", err);
+        return NextResponse.json({ error: "Failed to fetch location data" }, { status: 500 });
     }
 }

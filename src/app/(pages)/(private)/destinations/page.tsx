@@ -4,13 +4,29 @@ import { useRef, useState, useEffect } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import Image from "next/image";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useGeolocation } from "@/hooks/useGeolocation";
+import GooglePlacesAutocomplete from "@/components/AutoComplete";
+import { Locate, Route, LocateFixed, X, MapPin, ChevronRight } from "lucide-react";
 
 interface Destination {
     lat: number;
     lng: number;
     name?: string;
+}
+
+interface PlaceData {
+    formatted_address: string;
+    geometry: {
+        location: {
+            lat: () => number;
+            lng: () => number;
+        }
+    };
+    place_id: string;
+    name: string;
+    types?: string[];
+    [key: string]: any;
 }
 
 const MAPBOX_API_KEY = "sk.eyJ1IjoidmFpZGlrYmhlc2FuaXlhIiwiYSI6ImNtOW9rNnMyNjB6ZzQyanIwMWN2cnR4OG0ifQ.i2cK1Nbhw_ivyYhjEQWUmA";
@@ -32,13 +48,17 @@ const PlaneLoadingAnimation = () => (
 const DestinationPage: React.FC = () => {
     const { location } = useGeolocation();
     const [destinations, setDestinations] = useState<Destination[]>([]);
-    const [searchInput, setSearchInput] = useState("");
     const [suggestions, setSuggestions] = useState<any[]>([]);
     const mapRef = useRef<mapboxgl.Map | null>(null);
     const mapContainerRef = useRef<HTMLDivElement>(null);
     const [isMapLoading, setIsMapLoading] = useState(true);
     const markersRef = useRef<mapboxgl.Marker[]>([]);
     const lastDestinationRef = useRef<Destination | null>(null);
+    const [searchType, setSearchType] = useState<'geocode' | 'address' | 'establishment' | '(regions)' | '(cities)' | undefined>(undefined);
+    const [country, setCountry] = useState<string | undefined>(undefined);
+    const [isCurrentLocationVisible, setIsCurrentLocationVisible] = useState<boolean>(true);
+    // Add state for route panel visibility
+    const [showRoutePanel, setShowRoutePanel] = useState<boolean>(false);
 
     // Initialize map
     useEffect(() => {
@@ -61,6 +81,20 @@ const DestinationPage: React.FC = () => {
             .addTo(map);
 
         markersRef.current.push(currentLocationMarker);
+
+        // Check if user location is visible after map moves
+        map.on("moveend", () => {
+            if (!map || !location) return;
+
+            // Get the current map bounds
+            const bounds = map.getBounds();
+
+            // Check if the user's current location is within these bounds
+            const isVisible = bounds.contains([location.lng, location.lat]);
+
+            // Update state based on visibility
+            setIsCurrentLocationVisible(isVisible);
+        });
 
         map.on("click", async (e) => {
             const { lng, lat } = e.lngLat;
@@ -186,31 +220,29 @@ const DestinationPage: React.FC = () => {
                                 "line-width": 4,
                             },
                         });
+                    } else {
+                        // Update existing route
+                        const source = mapRef.current.getSource('route') as mapboxgl.GeoJSONSource;
+                        source.setData({
+                            type: "Feature",
+                            properties: {},
+                            geometry: route,
+                        });
                     }
                 })
                 .catch(console.error);
         }
     }, [destinations, location]);
 
-    const handleSearch = async (query: string) => {
-        setSearchInput(query);
-        if (!query) return setSuggestions([]);
+    const handleSelect = (place: any) => {
+        // Extract coordinates from Google Places format
+        const lat = place.geometry.location.lat();
+        const lng = place.geometry.location.lng();
+        const placeName = place.name || place.formatted_address;
 
-        const res = await fetch(
-            `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?autocomplete=true&access_token=${MAPBOX_API_KEY}`
-        );
-        const data = await res.json();
-        setSuggestions(data.features || []);
-    };
-
-    const handleSelect = (feature: any) => {
-        const [lng, lat] = feature.center;
-        const placeName = feature.place_name;
         const newDestination = { lat, lng, name: placeName };
         setDestinations(prev => [...prev, newDestination]);
         lastDestinationRef.current = newDestination;
-        setSearchInput("");
-        setSuggestions([]);
 
         // Fly to the selected destination if map is available
         if (mapRef.current) {
@@ -223,32 +255,134 @@ const DestinationPage: React.FC = () => {
         }
     };
 
+    // Function to fly to user's current location
+    const flyToCurrentLocation = () => {
+        if (!mapRef.current || !location) return;
+
+        mapRef.current.flyTo({
+            center: [location.lng, location.lat],
+            zoom: 14,
+            essential: true,
+            duration: 1500
+        });
+
+        // Update visibility state after flying to location
+        setIsCurrentLocationVisible(true);
+    };
+
+    // Toggle route panel visibility
+    const toggleRoutePanel = () => {
+        setShowRoutePanel(prev => !prev);
+    };
+
     return (
         <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-            <div className="absolute top-[10%] left-1/2 transform -translate-x-1/2 z-20 bg-white p-4 rounded-lg shadow-xl w-[340px]">
-                <div className="flex flex-col">
-                    <input
-                        type="text"
-                        placeholder="Choose a starting place"
-                        value={searchInput}
-                        onChange={(e) => handleSearch(e.target.value)}
-                        className="border border-gray-300 px-3 py-2 rounded focus:outline-none"
-                    />
-                    {suggestions.length > 0 && (
-                        <ul className="bg-white border border-gray-200 mt-1 max-h-60 overflow-auto rounded shadow-md">
-                            {suggestions.map((s, i) => (
-                                <li
-                                    key={i}
-                                    className="px-3 py-2 hover:bg-blue-100 cursor-pointer"
-                                    onClick={() => handleSelect(s)}
-                                >
-                                    {s.place_name}
-                                </li>
-                            ))}
-                        </ul>
-                    )}
+            {/* Animated Route Panel */}
+            <AnimatePresence>
+                {showRoutePanel && (
+                    <motion.div
+                        className="absolute top-[10%] left-1/2 transform -translate-x-1/2 z-30 bg-white p-6 rounded-lg shadow-xl w-[350px]"
+                        initial={{ opacity: 0, y: -50 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -50 }}
+                        transition={{ type: "spring", damping: 15 }}
+                    >
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-xl font-semibold text-gray-800">Plan Your Route</h3>
+                            <button
+                                onClick={toggleRoutePanel}
+                                className="text-gray-500 hover:text-gray-800 transition-colors"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="relative">
+                                <div className="absolute left-3 top-3 text-blue-500">
+                                    <MapPin size={20} />
+                                </div>
+                                <div className="ml-10 bg-gray-100 p-2 rounded-lg">
+                                    {location ? "Your Location" : "Loading location..."}
+                                </div>
+                            </div>
+
+                            {/* Connecting line */}
+                            <div className="ml-[22px] h-8 w-px bg-gray-300"></div>
+
+                            <div className="relative">
+                                <div className="absolute left-3 top-3 text-red-500">
+                                    <MapPin size={20} />
+                                </div>
+                                <GooglePlacesAutocomplete
+                                    apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}
+                                    onPlaceSelected={handleSelect}
+                                    placeholder="Enter destination"
+                                    searchType={searchType}
+                                    country={country}
+
+                                />
+                            </div>
+
+                            <motion.button
+                                whileHover={{ scale: 1.03 }}
+                                whileTap={{ scale: 0.97 }}
+                                className="w-full bg-blue-500 text-white p-3 rounded-lg font-medium flex items-center justify-center space-x-2 mt-2"
+                                onClick={() => {/* Handle route calculation */ }}
+                            >
+                                <span>Get Directions</span>
+                                <ChevronRight size={18} />
+                            </motion.button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Standard location search inputs (only show when route panel is hidden) */}
+            {/* {!showRoutePanel && (
+                <div className="absolute top-[10%] left-1/2 transform -translate-x-1/2 z-20 bg-white p-4 rounded-lg shadow-xl w-[340px]">
+                    <div className="flex flex-col">
+                        <GooglePlacesAutocomplete
+                            apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}
+                            onPlaceSelected={handleSelect}
+                            placeholder="Enter a location"
+                            searchType={searchType}
+                            country={country}
+                        />
+                        <GooglePlacesAutocomplete
+                            apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}
+                            onPlaceSelected={handleSelect}
+                            placeholder="Enter a location"
+                            searchType={searchType}
+                            country={country}
+                        />
+                    </div>
                 </div>
-            </div>
+            )} */}
+
+            {/* Locate Me Button - Conditionally render based on visibility */}
+            <button
+                onClick={flyToCurrentLocation}
+                className="fixed bottom-[15%] right-11 bg-white p-3 rounded-full shadow-lg z-20 hover:bg-gray-100 transition-colors duration-200"
+                aria-label="Locate me"
+            >
+                {isCurrentLocationVisible ? (
+                    <LocateFixed className="text-black h-9 w-9" />
+                ) : (
+                    <Locate className="text-black h-9 w-9" />
+                )}
+            </button>
+
+            {/* Route Button with animation effect */}
+            <motion.button
+                onClick={toggleRoutePanel}
+                className={`fixed bottom-[25%] right-11 p-3 rounded-full shadow-lg z-20 transition-colors duration-200 ${showRoutePanel ? 'bg-blue-500 text-white' : 'bg-white text-black'}`}
+                aria-label="route"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+            >
+                <Route className="h-9 w-9" />
+            </motion.button>
 
             {location && (
                 <div className="relative w-full h-screen">
